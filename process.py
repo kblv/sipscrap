@@ -87,16 +87,3 @@ for pcount,packet in enumerate(fhandler):
 			counter+=1
 result(collectedmessages)
 
-#	packet.show()
-#	print(dir(type(packet)))
-#	print ("Packet:", type(packet))
-#	payload=packet.payload
-#	#print (payload)
-#	ip=packet.getlayer(UDP)
-#	print (type(ip))
-#	print ("Ausgabe:",str(bytes(ip.payload),"UTF-8"))
-#	print ("Last Layer:",str(bytes(ip.lastlayer()),"UTF-8"))
-#
-#	fhandle=open("hallo.txt","w")
-#	fhandle.write(str(ip.payload))
-#	fhandle.close()
