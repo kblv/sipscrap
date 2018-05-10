@@ -1,4 +1,4 @@
-#What it is
+# What it is
 
 Sipscrap is thought as a tool to extract raw SIP messages (as used for voice over IP) out of a pcap file.
 
@@ -8,7 +8,7 @@ You will get a text representation (as file or to stdout) of the message, as SIP
 This is useful for example if you want to use the SIP messages in a sipp tester scenario - for this case you could simply copy the message and copy-paste it to the scenario (make sure you copy the blank lines at the end) or if you need to validate some stuff using text processing tools.
 
 
-#Limitations
+# Limitations
 
 Currently there are the following limitations:
 
@@ -25,7 +25,7 @@ Currently there are the following limitations:
 ** If the SIP message is longer than one layer 4 packet (UPD, SIP, SCTP) it will not be fetched completely, but just the part which starts in one packet
 
 
-#What it could handle
+# What it could handle
 
 * Non-SIP messages are no problem - they will be simply skipped
 * It should support most of the common transport protocols (everything up to layer 4)
@@ -33,7 +33,7 @@ Currently there are the following limitations:
 ** it uses the python library scapy for that and basically does not care about the layers, but just for that they are seperated, so it could take the Unknown one and checks wheter it is SIP 
 
 
-#What is needed to use it
+# What is needed to use it
 
 In the following pip (Python package installer) is being used, please note that in Linux you usually need to be root to use it
 
@@ -49,7 +49,7 @@ In the following pip (Python package installer) is being used, please note that 
 
 
 
-#Usage
+# Usage
 
 * process.py -f \<File to Parse\>
 ** This will process the given file and print the output on the command line
