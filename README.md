@@ -54,3 +54,4 @@ In the following pip (Python package installer) is being used, please note that 
 * process.py -f \<File to Parse\>
   * This will process the given file and print the output on the command line
 * -o \<File\> will write the output to a file
+* process.py -h will show the help and additional options
