@@ -52,38 +52,41 @@ def result(sipmessage):
 		print (message,file=fhandler)
 	fhandler.close()
 
-gargs=processargs()
+def scrap():
+	try:
+		fhandler = rdpcap(gargs["infile"])
+	except Exception as ex:
+		print("Problem opening capture file",gargs["infile"])
+		print (ex)
+		exit()
+	for pcount,packet in enumerate(fhandler):
+		debug("\nProcessing packet:"+ str(pcount+1))
+		counter=0
+		#Running through layers
+		while True:
+			debug("Processing layer"+str(counter))
+			try:
+				debug("Checking for SIP, result:" + str(re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8"))))
+				if re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8")):
+					debug ("Found SIP, stop processing of packet")
+					collectedmessages.append(str(bytes(packet[counter]),"UTF-8"))
+					break
+			#It is possible that in the Layer are data which are resulting in invalid unicode -> in this case it is not SIP -> continue searching
+			except UnicodeDecodeError:
+				debug("Checking layer gave unicodeError -> expected if not SIP")
+				continue
 
-try:
-	fhandler = rdpcap(gargs["infile"])
-except Exception as ex:
-	print("Problem opening capture file",gargs["infile"])
-	print (ex)
-	exit()
-for pcount,packet in enumerate(fhandler):
-	debug("\nProcessing packet:"+ str(pcount+1))
-	counter=0
-	#Running through layers
-	while True:
-		debug("Processing layer"+str(counter))
-		try:
-			debug("Checking for SIP, result:" + str(re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8"))))
-			if re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8")):
-				debug ("Found SIP, stop processing of packet")
-				collectedmessages.append(str(bytes(packet[counter]),"UTF-8"))
+			#Have not found a way to know how many layers there are (len is returning length of the layer, not how many there are) and iteration just returns the current layer
+			#So just try and react to IndexError -> if that occurs we know there are no more layers in this packet to check
+			except IndexError:
+				debug("Found no SIP in packet - next packet")
 				break
-		#It is possible that in the Layer are data which are resulting in invalid unicode -> in this case it is not SIP -> continue searching
-		except UnicodeDecodeError:
-			debug("Checking layer gave unicodeError -> expected if not SIP")
-			continue
+			#Increasing counter needs to be run even if UnicodeDecodeError happens and loop will run the next loop -> else endless loop by not increasing counter
+			finally:
+				counter+=1
+	return(collectedmessages)
 
-		#Have not found a way to know how many layers there are (len is returning length of the layer, not how many there are) and iteration just returns the current layer
-		#So just try and react to IndexError -> if that occurs we know there are no more layers in this packet to check
-		except IndexError:
-			debug("Found no SIP in packet - next packet")
-			break
-		#Increasing counter needs to be run even if UnicodeDecodeError happens and loop will run the next loop -> else endless loop by not increasing counter
-		finally:
-			counter+=1
-result(collectedmessages)
+gargs=processargs()
+result(scrap())
+
 
