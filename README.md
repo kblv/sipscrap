@@ -29,7 +29,7 @@ Currently there are the following limitations:
 
 * Non-SIP messages are no problem - they will be simply skipped
 * It should support most of the common transport protocols (everything up to layer 4)
-  * this should include things like VAN-tunnels (Ethernet-in-Ethernet header encapsulation)
+  * this should include things like VLAN-tunnels (Ethernet-in-Ethernet header encapsulation)
   * it uses the python library scapy for that and basically does not care about the layers, but just for that they are seperated, so it could take the Unknown one and checks wheter it is SIP 
 
 
