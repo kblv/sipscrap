@@ -9,7 +9,6 @@ statusline="SIP/\d+\.\d+ \d{3} .*"
 debug=True
 
 gargs=None
-collectedmessages=list()
 
 def processargs():
 	argparser=ArgumentParser(description="Processes PCAP files and returns the raw SIP (+everything in the Body/Content)")
@@ -49,10 +48,22 @@ def debug(message):
 def result(sipmessage):
 	fhandler=makefilehandler(gargs["outfile"])
 	for message in sipmessage:
-		print (message,file=fhandler)
+		print (message["message"],file=fhandler)
 	fhandler.close()
 
+###Check for IPv6 required
+def getips(packet):
+	if packet.haslayer(scapy.layers.inet.IP):
+		debug("Found the following src and dst IP in the packet: " + packet.getlayer(scapy.layers.inet.IP).src + " " + packet.getlayer(scapy.layers.inet.IP).dst)
+		return packet.getlayer(scapy.layers.inet.IP).src, packet.getlayer(scapy.layers.inet.IP).dst
+	else:
+		debug("Didn't found any IP header in the packet - so no IPs available")
+		return None, None
+
+
+#collectedmessages is a list of dicts containing src-addr, dst-addr, message
 def scrap():
+	collectedmessages=list()
 	try:
 		fhandler = rdpcap(gargs["infile"])
 	except Exception as ex:
@@ -69,7 +80,9 @@ def scrap():
 				debug("Checking for SIP, result:" + str(re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8"))))
 				if re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8")):
 					debug ("Found SIP, stop processing of packet")
-					collectedmessages.append(str(bytes(packet[counter]),"UTF-8"))
+					collectedmessages.append(dict({"message":str(bytes(packet[counter]),"UTF-8")}))
+					src,dst = getips(packet)	
+					collectedmessages[len(collectedmessages)-1].update({"src":src,"dst":dst})
 					break
 			#It is possible that in the Layer are data which are resulting in invalid unicode -> in this case it is not SIP -> continue searching
 			except UnicodeDecodeError:
