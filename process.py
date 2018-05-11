@@ -1,6 +1,7 @@
 from scapy.all import *
 import re
 from argparse import ArgumentParser
+from debug import debug as d
 
 #Actually they are not quite accurate - in request line the url schemes are represented by any non-whitespace-character -> too lazy to implement all the schemes
 #statusline -> the Reason-Phrase is represented by .*, as it could be nearly everything (but by BPF just >nearl< everything)
@@ -9,6 +10,7 @@ statusline="SIP/\d+\.\d+ \d{3} .*"
 debug=True
 
 gargs=None
+
 
 def processargs():
 	argparser=ArgumentParser(description="Processes PCAP files and returns the raw SIP (+everything in the Body/Content)")
@@ -36,15 +38,15 @@ def makefilehandler(filepath,mode="a",dieonerror=True):
 		fhandler=filepath
 	return fhandler
 
-def debug(message):
-	if gargs["debug"]:
-		fhandler=makefilehandler(gargs["debugfile"])
-		print(message,file=fhandler)
-		#This is surely not the most elegant way to close that after every single write, but everything else would need more effort
-		#Prevent closing stderr -> seems you can't open it again
-		if type(gargs["debug"])==str:
-			fhandler.close()
-
+#def d.debug(message):
+#	if gargs["debug"]:
+#		fhandler=makefilehandler(gargs["debugfile"])
+#		print(message,file=fhandler)
+#		#This is surely not the most elegant way to close that after every single write, but everything else would need more effort
+#		#Prevent closing stderr -> seems you can't open it again
+#		if type(gargs["debug"])==str:
+#			fhandler.close()
+#
 def result(sipmessage):
 	fhandler=makefilehandler(gargs["outfile"])
 	for message in sipmessage:
@@ -54,10 +56,10 @@ def result(sipmessage):
 ###Check for IPv6 required
 def getips(packet):
 	if packet.haslayer(scapy.layers.inet.IP):
-		debug("Found the following src and dst IP in the packet: " + packet.getlayer(scapy.layers.inet.IP).src + " " + packet.getlayer(scapy.layers.inet.IP).dst)
+		d.debug("Found the following src and dst IP in the packet: " + packet.getlayer(scapy.layers.inet.IP).src + " " + packet.getlayer(scapy.layers.inet.IP).dst)
 		return packet.getlayer(scapy.layers.inet.IP).src, packet.getlayer(scapy.layers.inet.IP).dst
 	else:
-		debug("Didn't found any IP header in the packet - so no IPs available")
+		d.debug("Didn't found any IP header in the packet - so no IPs available")
 		return None, None
 
 
@@ -71,28 +73,28 @@ def scrap():
 		print (ex)
 		exit()
 	for pcount,packet in enumerate(fhandler):
-		debug("\nProcessing packet:"+ str(pcount+1))
+		d.debug("\nProcessing packet:"+ str(pcount+1))
 		counter=0
 		#Running through layers
 		while True:
-			debug("Processing layer"+str(counter))
+			d.debug("Processing layer"+str(counter))
 			try:
-				debug("Checking for SIP, result:" + str(re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8"))))
+				d.debug("Checking for SIP, result:" + str(re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8"))))
 				if re.match("^"+requestline+"|"+statusline,str(bytes(packet[counter]),"UTF-8")):
-					debug ("Found SIP, stop processing of packet")
+					d.debug ("Found SIP, stop processing of packet")
 					collectedmessages.append(dict({"message":str(bytes(packet[counter]),"UTF-8")}))
 					src,dst = getips(packet)	
 					collectedmessages[len(collectedmessages)-1].update({"src":src,"dst":dst})
 					break
 			#It is possible that in the Layer are data which are resulting in invalid unicode -> in this case it is not SIP -> continue searching
 			except UnicodeDecodeError:
-				debug("Checking layer gave unicodeError -> expected if not SIP")
+				d.debug("Checking layer gave unicodeError -> expected if not SIP")
 				continue
 
 			#Have not found a way to know how many layers there are (len is returning length of the layer, not how many there are) and iteration just returns the current layer
 			#So just try and react to IndexError -> if that occurs we know there are no more layers in this packet to check
 			except IndexError:
-				debug("Found no SIP in packet - next packet")
+				d.debug("Found no SIP in packet - next packet")
 				break
 			#Increasing counter needs to be run even if UnicodeDecodeError happens and loop will run the next loop -> else endless loop by not increasing counter
 			finally:
@@ -100,6 +102,8 @@ def scrap():
 	return(collectedmessages)
 
 gargs=processargs()
+#Initalizing the debug static object
+d.setup(gargs["debug"],gargs["debugfile"])
 result(scrap())
 
 
