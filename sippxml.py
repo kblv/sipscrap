@@ -3,7 +3,7 @@ from filehandler import makefilehandler
 import re
 
 
-method="^[\w,-,\.,!,%,\*,_,\+,\',~]+ (\S*) SIP/\d+\.\d+"
+method="^([\w,-,\.,!,%,\*,_,\+,\',~]+) \S* SIP/\d+\.\d+"
 responsecode="SIP/\d+\.\d+ (\d{3}) .*"
 
 templatenames=dict({"epilog":"epilog.xml","preamble":"preamble.xml","receive":"recv.xml","send":"send.xml"})
@@ -70,11 +70,11 @@ def getMethodorStatus(data):
 		result=re.match(method + "|" + responsecode,data)
 		if result:
 			if result.group(1):
-				return result.group(1) 
 				d.debug("Found Method:" + result.group(1))
+				return result.group(1) 
 			else:
-				return result.group(2)
 				d.debug("Found Responsecode:" + result.group(2))
+				return result.group(2)
 
 #Returns a dict, containing the name (functional name)  and the content	of the template
 def gettemplates(path,filelist):
