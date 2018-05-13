@@ -52,10 +52,11 @@ def makefilehandler(filepath,mode="a",dieonerror=True):
 def result(sipmessage):
 	if gargs["xml"]:
 		sippxml_out(sipmessage,"/tmp/outfile")	
-	fhandler=makefilehandler(gargs["outfile"])
-	for message in sipmessage:
-		print (message["message"],file=fhandler)
-	fhandler.close()
+	else:
+		fhandler=makefilehandler(gargs["outfile"])
+		for message in sipmessage:
+			print (message["message"],file=fhandler)
+		fhandler.close()
 
 ###Check for IPv6 required
 def getips(packet):
