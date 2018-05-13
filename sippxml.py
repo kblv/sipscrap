@@ -14,7 +14,7 @@ def getlistofuniqconnection(data):
 	for entry in data:
 		if not (entry.src,entry.dst) in connections and not (entry.dst,entry.src) in connections:
 			connections.add((entry.scr,entry.dst))
-	d.debug("got list of uniq connections" + str(connections)
+	d.debug("got list of uniq connections" + str(connections))
 	return connections
 
 #Takes a list of tuples with IPs and returns a list or set of IP addresses - it could be defined whether the entries need to be uniqu
@@ -23,12 +23,12 @@ def getlistofipsfromconnections(connlist,uniq=False):
 		iplist=set()
 		for conn in connlist:
 			iplist.update(conn)
-		d.debug("Got set of unique IP addresses" + str(iplist)
+		d.debug("Got set of unique IP addresses" + str(iplist))
 	else:
 		iplist=list()
 		for conn in connlist:
 			iplist.extend(conn)	
-		d.debug("Got list of IP addresses" + str(iplist)
+		d.debug("Got list of IP addresses" + str(iplist))
 	return iplist
 
 #Returns from a list of connections the peer for a certain IP
@@ -54,7 +54,7 @@ def getlistofoutfiles(outbasename,listofconnections):
 		for peernum, peer in enumerate(getlistofpeers(ip,uniqconn)):
 			fileconnections[ip].update({peer:dict()})
 			fileconnection[sip][peer].update({"filename":outbasename+"_ip"+ipnum+"_"+"peer"+peernum})
-			d.debug("Added file "+ fileconnections[ip][peer]["filename"] + " for " + ip + " and its peer " + peer])
+			d.debug("Added file "+ fileconnections[ip][peer]["filename"] + " for " + ip + " and its peer " + peer)
 	return fileconnections 
 
 #returns either the status code or the method of the message
@@ -63,7 +63,7 @@ def getMethodorStatus(data):
 	for line in data:
 		result=re.match(method + "|" + responsecode,data)
 		if result:
-			if result.group(1)
+			if result.group(1):
 				return result.group(1) 
 				d.debug("Found Method:" + result.group(1))
 			else:
@@ -84,7 +84,7 @@ def gettemplates(path,filelist):
 #when using 2 lists to construct the same functionality both will get updated all the time
 def getlistofoutfilehandlers(outfileconnections):
 	outfilhandlerlist=list()
-	for ipentry in outfileconnections
+	for ipentry in outfileconnections:
 		for peerentry in ipentry:
 			outfilhandlerlist.append(outfileconnections[ipentry][peerentry]["filehandler"])
 	return outfilhandlerlist 
@@ -93,12 +93,12 @@ def getlistofoutfilehandlers(outfileconnections):
 #Replaces marker in templates with the value and returns a list of finished processed strings
 #templates is a list (needs to be) of templates (basically strings)
 #replace is a dictionary containing the marker names as key and the values by which to replace as value
-#marker-prefix and marker-suffix is what comes in the template before the marker-name to define it as marker
-def replacemarker(templates,replace,marker-prefix="<!scrap-",marker-suffix="!>"):
+#markerprefix and markersuffix is what comes in the template before the marker-name to define it as marker
+def replacemarker(templates,replace,markerprefix="<!scrap-",markersuffix="!>"):
 	outlist=list()
 	for template in templates:
 		for marker, value in replace.items():
-			compiledmarker=marker-prefix+marker+marker-suffix
+			compiledmarker=markerprefix+marker+markersuffix
 			template=template.replace(compiledmarker,value)
 			d.debug("Replacing in template " + template + " " + compiledmarker + "by" + value)
 		outlist.append(template)
@@ -137,7 +137,7 @@ def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/")
 	#This should probably go to a own function	
 	#Open the outfiles	
 	d.debug("Opening the output files")
-	for ipentry in outfileconnections
+	for ipentry in outfileconnections:
 		for peerentry in ipentry:
 			outfileconnections[ipentry][peerentry].update({"filehandler":makefilehandler(peerentry["filename"],mode="w")})
 	
@@ -147,7 +147,7 @@ def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/")
 
 	#Write the preamble to all file 
 	d.debug("Writing the preamble to all output files")
-	writetemplatetooutfile(getlistofoutfilehandlers(outfileconnections),templates["preamble"]))
+	writetemplatetooutfile(getlistofoutfilehandlers(outfileconnections),templates["preamble"])
 
 	#Write the responses and requests to the files	
 	d.debug("Writing the actual data to the output files") 
@@ -159,7 +159,7 @@ def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/")
 
 	#Write the epilog to all files
 	d.debug("Writing the epilog to all files")
-	writetemplatetooutfile(getlistofoutfilehandlers(outfileconnections),templates["epilog"]))
+	writetemplatetooutfile(getlistofoutfilehandlers(outfileconnections),templates["epilog"])
 
 	d.debug("Closing all output file")
 	for filehandler in getlistofoutfilehandlers(outfileconnections):
