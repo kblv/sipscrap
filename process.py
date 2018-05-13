@@ -18,6 +18,7 @@ def processargs():
 	argparser.add_argument("-e","--debugfile",type=str,default=sys.stderr,dest="debugfile",help="Write debug messages to file -> default is stderr (print it on termial)")
 	argparser.add_argument("-f","--file",type=str,required=True,dest="infile",help="File to parse (must be pcap or pcapng)")
 	argparser.add_argument("-o","--out","--outputfile",type=str,default=sys.stdout,dest="outfile",help="Write SIP messages to file - default is print to stdout")
+	argparser.add_argument("-x","--xml",dest="xml",action="store_true",help="Writes sipp xml files")
 
 	return(vars(argparser.parse_args()))
 
@@ -48,6 +49,8 @@ def makefilehandler(filepath,mode="a",dieonerror=True):
 #			fhandler.close()
 #
 def result(sipmessage):
+	if gargs["xml"]:
+		sippxml_out(sipmessage,"/tmp/outfile")	
 	fhandler=makefilehandler(gargs["outfile"])
 	for message in sipmessage:
 		print (message["message"],file=fhandler)
