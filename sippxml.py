@@ -6,7 +6,7 @@ import re
 method="^([\w,-,\.,!,%,\*,_,\+,\',~]+) \S* SIP/\d+\.\d+"
 responsecode="SIP/\d+\.\d+ (\d{3}) .*"
 
-templatenames=dict({"epilog":"epilog.xml","preamble":"preamble.xml","receive":"recv.xml","send":"send.xml"})
+templatenames=dict({"epilog":"epilog.xml","preamble":"preamble.xml","reqreceive":"reqrecv.xml","resreceive":"resrecv.xml","ressend":"ressend.xml","reqsend":"reqsend.xml"})
 
 #Returns a list of uniq connections, but direction inpependent -> connection A to B is same as B to A
 #The return value is a set containing tuples with the both addresses of a connection
@@ -63,18 +63,26 @@ def getlistofoutfiles(outbasename,uniqconn):
 			d.debug("Added file "+ fileconnections[ip][peer]["filename"] + " for " + ip + " and its peer " + peer)
 	return fileconnections 
 
-#returns either the status code or the method of the message
+#returns a dict
+#reqorres contains Request or Response saying whether the message is a request or a response
+#metorcod contains the Method or the response code
 def getMethodorStatus(data):
+	fresult=dict()
 	#There could be empty lines in the beginning, so we are looping
 	for line in data:
 		result=re.match(method + "|" + responsecode,data)
 		if result:
 			if result.group(1):
 				d.debug("Found Method:" + result.group(1))
-				return result.group(1) 
+				fresult["reqorres"]="Request"
+				fresult["metorcod"]=result.group(1)
+				#return result.group(1) 
 			else:
 				d.debug("Found Responsecode:" + result.group(2))
-				return result.group(2)
+				fresult["reqorres"]="Response"
+				fresult["metorcod"]=result.group(2)
+				#return result.group(2)
+		return fresult
 
 #Returns a dict, containing the name (functional name)  and the content	of the template
 def gettemplates(path,filelist):
@@ -171,9 +179,17 @@ def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/")
 	d.debug("Writing the actual data to the output files") 
 	for dataset in data:
 		methodresponse=getMethodorStatus(dataset["message"])	 
-		replacedict=dict({"methodresponse":methodresponse,"message":dataset["message"]})
-		writetemplatetooutfile(outfileconnections[dataset["src"]][dataset["dst"]]["filehandler"],templates["send"],replacedict)	
-		writetemplatetooutfile(outfileconnections[dataset["dst"]][dataset["src"]]["filehandler"],templates["receive"],replacedict)	
+		replacedict=dict({"methodresponse":methodresponse["metorcod"],"message":dataset["message"]})
+		templatename=dict()
+		if methodresponse["reqorres"] == "Request":
+			templatename["src"]="reqsend"
+			templatename["dst"]="reqreceive"
+		else:
+			templatename["src"]="ressend"
+			templatename["dst"]="resreceive"
+			 
+		writetemplatetooutfile(outfileconnections[dataset["src"]][dataset["dst"]]["filehandler"],templates[templatename["src"]],replacedict)	
+		writetemplatetooutfile(outfileconnections[dataset["dst"]][dataset["src"]]["filehandler"],templates[templatename["dst"]],replacedict)	
 
 	#Write the epilog to all files
 	d.debug("Writing the epilog to all files")
