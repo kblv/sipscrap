@@ -3,6 +3,7 @@ import re
 from argparse import ArgumentParser
 from debug import debug as d
 from sippxml import sippxml_out 
+import sys
 
 #Actually they are not quite accurate - in request line the url schemes are represented by any non-whitespace-character -> too lazy to implement all the schemes
 #statusline -> the Reason-Phrase is represented by .*, as it could be nearly everything (but by BPF just >nearl< everything)
@@ -12,6 +13,36 @@ debug=True
 
 gargs=None
 
+#processes the r-option
+#returns a list where every single replacement-option is represented with a dict containing for each entry element, replacement, attributnumber
+def process_r_option(optionlist):
+	result=list()	
+	dictnames=list(["element","replacement","attributnumber"])
+	for optionnumber,option in enumerate(optionlist):
+		result.append(dict())
+		splitlist=option.s(":")
+		#In the case that one element is missing, we assume it is the attributnumber
+		if len(dictnames) - len(splitlist) == 1:
+			splitlist.append(1)
+		elif len(dictnames) - len(splitlist) > 1:
+			print("-r Option missing values")
+			print("You gave:",option)
+			print("Mandatory are element (first field),replacement (second field) - so the option should look like at least element:replacement")
+			sys.exit(1)
+			 
+		for entrynumber,entry in enumerate(splitlist):
+			if not entry 
+				if entrynumber < len(dictnames-1):
+					print("-r Option empty (just the last one is allowed to be not provided")
+					print("You gave:",option)
+					print("Mandatory are element (first field),replacement (second field) - so the option should look like at least element:replacement")
+					sys.exit(1)
+				else:
+					entry=1
+					
+			result[optionnumber][dictnames[entrynumber]]=entry
+	return(result)		
+			
 
 def processargs():
 	argparser=ArgumentParser(description="Processes PCAP files and returns the raw SIP (+everything in the Body/Content)")
@@ -20,8 +51,11 @@ def processargs():
 	argparser.add_argument("-f","--file",type=str,required=True,dest="infile",help="File to parse (must be pcap or pcapng)")
 	argparser.add_argument("-o","--out","--outputfile",type=str,default=sys.stdout,dest="outfile",help="Write SIP messages to file - default is print to stdout. Required when running with -x")
 	argparser.add_argument("-x","--xml",dest="xml",action="store_true",help="Writes sipp xml files")
+	argparser.add_argument("-r","--replace",dest="replace",action="append",help="Replaces a certain element with a user-defined string. Syntax: -r \'element.subelement.attribute\':replacement:attributenumber. See documentation for details")
 
-	return(vars(argparser.parse_args()))
+	argdict=vars(argparser.parse_args())
+	if argdict["replace"]:
+		argdict["replace"]=process_r_option(argdict["replace"]
 
 #Opens a file (based on the path) and returns the handle, if not a string has been passed return what was passed (it could be already a file handler)
 def makefilehandler(filepath,mode="a",dieonerror=True):
@@ -51,7 +85,7 @@ def makefilehandler(filepath,mode="a",dieonerror=True):
 #
 def result(sipmessage):
 	if gargs["xml"]:
-		sippxml_out(sipmessage,gargs["outfile"])	
+		sippxml_out(sipmessage,gargs["outfile"],replace=gargs["replace"])	
 	else:
 		fhandler=makefilehandler(gargs["outfile"])
 		for message in sipmessage:

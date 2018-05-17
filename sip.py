@@ -125,7 +125,6 @@ class sipmessage(object):
 				message+=header["seperator"]
 		return (message)
 			
-	
 	#Replace something or delete it
 	#returns the message where the part has been replaced
 	#message -> the sip message itself
@@ -258,3 +257,21 @@ class sipmessage(object):
 		self.messagestruct=messagestruct	
 
 		return message
+
+	#Wraper around replace, making it possible to replace more than one field 
+	#It expects a list with dictionary in it -  which has at least element, replacement and otpional attributnumber in it 
+	#Optional a message to parse could be hand over -> but note, that the message of the object will become the message provided here - if no message, it is the message given
+	#to the object at initalization time
+	replace_multiple(replacementlist,message=None):
+		if not message:
+			message=self.message()	
+
+		for replacementdict in replacementlist:
+			if replacementdict[attributnumber]:
+				newmessage=self.replace(replacementdict["element"],replacementdict["replacement"],replacementdict["attributnumber"])
+			else:
+				newmessage=self.replace(replacementdict["element"],replacementdict["replacement"])
+
+		return newmessage
+
+

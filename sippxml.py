@@ -151,7 +151,7 @@ def writetemplatetooutfile(outfiles,templates,replace=None):
 	
 
 
-def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/"):
+def sippxml_out(data,outbasename=None,seperateby="ip",replace=None,templatepath="templates/"):
 
 	#Add at this point add other seperateby ways
 	if seperateby=="ip":
@@ -171,6 +171,7 @@ def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/")
 	#Get the content of the templates		
 	d.debug("Loading the templates")
 	templates=gettemplates(templatepath,templatenames)
+
 	#Write the preamble to all file 
 	d.debug("Writing the preamble to all output files")
 	writetemplatetooutfile(getlistofoutfilehandlers(outfileconnections),templates["preamble"])
@@ -178,7 +179,11 @@ def sippxml_out(data,outbasename=None,seperateby="ip",templatepath="templates/")
 	#Write the responses and requests to the files	
 	d.debug("Writing the actual data to the output files") 
 	for dataset in data:
+		#Replace elements in the sip message defined by the user (by command line argument)
+		if replace:
+			sipmessage(dataset).replace_multiple(replace)	
 		methodresponse=getMethodorStatus(dataset["message"])	 
+		#This is about replacing fields in the template with values - it has nothing to do with the replacing of elements of the message (as done some lines earlier)
 		replacedict=dict({"methodresponse":methodresponse["metorcod"],"message":dataset["message"]})
 		templatename=dict()
 		if methodresponse["reqorres"] == "Request":
