@@ -1,2 +1,2 @@
-  <recv request=<!scrap-methodresponse!> crlf="true">
+  <recv request="<!scrap-methodresponse!>" crlf="true">
   </recv>
