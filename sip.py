@@ -2,13 +2,16 @@ import re
 import regex
 from collections import OrderedDict
 import copy
+from debug import debug as d 
 
 #Hack - striping the "[" and "]" from character classes when they need to be integrated into other character classes
 #If you would not do that (and having instead something like [[old-class]some new stuff] it would not work as one character class
 def rg(expression):
-	stripped, count=re.subn("^[","",expression)
+	d.debug("Removing [ from regular expression for: "+expression)
+	stripped, count=re.subn("^\[","",expression)
 	if count:
-		stripped=re.subn("]$","",stripped)
+		stripped=re.subn("\]$","",stripped)[0]
+	d.debug("Removed [ from regular expression from "+expression+" it is now: "+stripped)
 	return stripped
 
 #Class does not support header folding (headers going over multiple lines
@@ -27,17 +30,18 @@ class sipmessage(object):
 	_WSP="["+_SP+"|"+_HTAB+"]"
 	_LWS="(?:"+_WSP+"*"+_CRLF+")?"+_WSP+"+"
 	_SWS=_LWS
+	_COMMA=_SWS+","+_SWS
 	_HCOLON="["+_SP+"|"+_HTAB+"]*:"+_SWS
 	_token="["+rg(_alphanum)+"|\!|%|\*|_|\+|`|'|~]+"
-	_header_name=("?P<header-name>"+_token+")"
-	_header_value="(?P<header-value>"+_TEXT_UTF8char+"|"+_UTF8-CONT+"|"+_LWS+")*"
+	_header_name="(?P<header-name>"+_token+")"
+	_header_value="(?P<header-value>"+_TEXT_UTF8char+"|"+_UTF8_CONT+"|"+_LWS+")*"
 	#This actually does not exist in the BNF, problem however is that in section 7.3 header is defined and it could contain multiple values - in the BNF extension-header
 	#which is here called _header is defined to containing just value (so just one of them)
 	_header_values="(?P<header-values>"+_header_value+"(?:"+_COMMA+_header_value+")*)"
 	#_header=_header_name+_HCOLON+_header_value
 	#This is extension-header in the BNF - used here as generic for all headers -> there is a difference, as I use header_values (multiple) instead of header_value (one as by the BNF)
 	#This is due to there are headers containing multiple values (as Contact for exapmle)
-	_header=_header_name+"(?P<headervalue-seperator>"_HCOLON+")"+_header_values
+	_header=_header_name+"(?P<headervalue-seperator>"+_HCOLON+")"+_header_values
 	_requestline="^[\w,-,\.,!,%,\*,_,\+,\',~]+ \S* SIP/\d+\.\d+"
 	_statusline="SIP/\d+\.\d+ \d{3} .*"
 	_lineseperator="\r\n"
@@ -47,7 +51,7 @@ class sipmessage(object):
 		self.structure=None
 	
 	#Actual a short cut - we are not parsing line by line, but just seperating the lines
-	get_lines(self,message=None,lineseperator=None):
+	def get_lines(self,message=None,lineseperator=None):
 		if not message:
 			message=self.message
 		if not lineseperator:
@@ -62,17 +66,17 @@ class sipmessage(object):
 	#name -> headername, it could be statusline if it is the statusline or requestline if it is the requestline, it could be None if the stuff in there could not be parsed, in this case value contains the complete line
 	#values -> the values as one string, the value might be None if there was no value
 	#headervalue-seperator -> everything in between headername and values -> needed for re-assembling the header - will be None in case of header could not be parsed
-	get_headers(self,message=None,lineseperator=None):
+	def get_headers(self,message=None,lineseperator=None):
 		#Regular expressions to be checked as "headers" - this could not be easily extended, as further down you would need to adjust what to write to single fields of the result
 		tocheck=dict({"header":_header,"statusline":_statusline,"requestline":_requestline})
-		if message=None:
+		if not message:
 			message=self.message
-		if lineseperator=self.lineseperator:
+		if lineseperator==self.lineseperator:
 			lineseperator=_lineseperator
 		result=list()
 		for line in get_lines(message,lineseperator):
 			#Check if it is a header, statusline or requestline
-			for rexname,regularex in tocheck
+			for rexname,regularex in tocheck:
 				try:
 					rmatch=regex.match(regularex,line)
 					headerandvaluematch=rmatch.capturesdict()
@@ -89,7 +93,7 @@ class sipmessage(object):
 					else:
 						continue
 					
-		result.append(dict({"name":headerandvalue["header-name"],"values":headerandvalue["header-values"],"headervalue-seperator":headerandvalue["headerandvalue-seperator"]})
+		result.append(dict({"name":headerandvalue["header-name"],"values":headerandvalue["header-values"],"headervalue-seperator":headerandvalue["headerandvalue-seperator"]}))
 		return result	
 	
 	#Returning a structure representing the structure of the message as far as it could de-assembled
@@ -121,7 +125,9 @@ class sipmessage(object):
 			headerparts.append(dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}))
 			headerparts.append=(dict({"type":"header-name","value":headersplitresult["name"],"follower":None,"seperator":headersplitresult["headervalue-seperator"]}))
 			#seperator=\r\n is a hack -> actually the BNF needs to be changed
-			structure.append({"type":,"value":header,"follower":headerparts,"seperator":"\r\n"}	
+			#This needs to be done manually, also in the future - it is a exception, as the type is named by part of the element value -> header by the headername, instead of
+			#by its BNF element name - needed for headers as else we could not address the concrete header 
+			structure.append({"type":headersplitresult["name"],"value":header,"follower":headerparts,"seperator":"\r\n"})	
 		return structure
 
 	#Builds the message from the struct of the message - using the top level values + there seperators
@@ -140,7 +146,7 @@ class sipmessage(object):
 	#replacement -> by what it should be replaced, put None if it should be deleted
 	#xte -> means if there are possible multiple occurences of "part" the how manity of them should be replaced - optional it could be 0 -> meaning all of them
 	#justvalue -> makes mostly just sense with headers, it will not replace the "part" defined, but just its value
-	replace(part,replacement,xte=1,justvalue=False,message=None):
+	def replace(part,replacement,xte=1,justvalue=False,message=None):
 		if not message:
 			message=self.message()
 		
@@ -164,7 +170,7 @@ class sipmessage(object):
 			if counterxte==xte:
 				break
 			#Looking for element which has not cheched as state in the last level
-			for element in visitedlevel[len(visitedlevel-1]:
+			for element in visitedlevel[len(visitedlevel)-1]:
 				try:
 					elementchecked=element["checked"]
 				except KeyError:
@@ -183,7 +189,7 @@ class sipmessage(object):
 								#If replacement is None
 								if not replacement:
 									replacement=""
-								element[partlist[partlistindex+1]=replacement
+								element[partlist[partlistindex+1]]=replacement
 								#remove all levels which came after the current one -> they have become invalid, as something has been updated for 
 								#the current one and they do not reflect this change -> but are the building-blocks from which the current one would 
 								#be created (in the view of the BNF)
@@ -270,7 +276,7 @@ class sipmessage(object):
 	#It expects a list with dictionary in it -  which has at least element, replacement and otpional attributnumber in it 
 	#Optional a message to parse could be hand over -> but note, that the message of the object will become the message provided here - if no message, it is the message given
 	#to the object at initalization time
-	replace_multiple(replacementlist,message=None):
+	def replace_multiple(replacementlist,message=None):
 		if not message:
 			message=self.message()	
 

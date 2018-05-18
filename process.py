@@ -32,7 +32,7 @@ def process_r_option(optionlist):
 			sys.exit(1)
 			 
 		for entrynumber,entry in enumerate(splitlist):
-			if not entry 
+			if not entry: 
 				if entrynumber < len(dictnames-1):
 					print("-r Option empty (just the last one is allowed to be not provided")
 					print("You gave:",option)
@@ -56,7 +56,9 @@ def processargs():
 
 	argdict=vars(argparser.parse_args())
 	if argdict["replace"]:
-		argdict["replace"]=process_r_option(argdict["replace"]
+		argdict["replace"]=process_r_option(argdict["replace"])
+
+	return argdict
 
 #Opens a file (based on the path) and returns the handle, if not a string has been passed return what was passed (it could be already a file handler)
 def makefilehandler(filepath,mode="a",dieonerror=True):
