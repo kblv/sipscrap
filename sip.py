@@ -108,12 +108,20 @@ class sipmessage(object):
 		structure=list()
 
 		#The first part is a total chaos
+		#This is done as we need first of all the complete header -> for the first element we will write
+		#The get_headers function will later on do the same again, but its not avoidable
 		for headernumber,header in enumerate(get_lines(message)):
-			structure.append({"type":"header","value":header,"follower":None,"seperator":"\r\n"}	
+#			structure.append({"type":"header","value":header,"follower":None,"seperator":"\r\n"}	
+#			headersplitresult=get_headers(line)[0]	
+#			headervalues=list([dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}
+#			headername=list([dict({"type":"header-name","value":headersplitresult[headervalue-seperator]+headersplitresult[values],"follower":None,"seperator":headersplitresult["headervalue-seperator"]})])
+#			structure[headernumber].update({"follower":headername})
+			headerparts=list()
 			headersplitresult=get_headers(line)[0]	
-			headervalues=list([dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}
-			headername=list([dict({"type":"header-name","value":headersplitresult[headervalue-seperator]+headersplitresult[values],"follower":None,"seperator":headersplitresult["headervalue-seperator"]})])
-			structure[headernumber].update({"follower":headername})
+			headerparts.append(dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}))
+			headerparts.append=(dict({"type":"header-name","value":headersplitresult["name"],"follower":None,"seperator":headersplitresult["headervalue-seperator"]}))
+			#seperator=\r\n is a hack -> actually the BNF needs to be changed
+			structure.append({"type":,"value":header,"follower":headerparts,"seperator":"\r\n"}	
 		return structure
 
 	#Builds the message from the struct of the message - using the top level values + there seperators
