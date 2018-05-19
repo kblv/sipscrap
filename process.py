@@ -21,7 +21,7 @@ def process_r_option(optionlist):
 	for optionnumber,option in enumerate(optionlist):
 		result.append(dict())
 		#It is important just to split based on the length of dictnames, as in the replacement parameter (last one) there might be characters equal to the seperator
-		splitlist=option.s(":",len(dictnames))
+		splitlist=option.split(":",len(dictnames))
 		#In the case that one element is missing, we assume it is the attributnumber
 		if len(dictnames) - len(splitlist) == 1:
 			splitlist.append(1)

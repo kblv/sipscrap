@@ -181,7 +181,7 @@ def sippxml_out(data,outbasename=None,seperateby="ip",replace=None,templatepath=
 	for dataset in data:
 		#Replace elements in the sip message defined by the user (by command line argument)
 		if replace:
-			sipmessage(dataset).replace_multiple(replace)	
+			dataset["message"]=sipmessage(dataset["message"]).replace_multiple(replace)	
 		methodresponse=getMethodorStatus(dataset["message"])	 
 		#This is about replacing fields in the template with values - it has nothing to do with the replacing of elements of the message (as done some lines earlier)
 		replacedict=dict({"methodresponse":methodresponse["metorcod"],"message":dataset["message"]})

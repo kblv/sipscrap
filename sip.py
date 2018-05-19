@@ -32,30 +32,31 @@ class sipmessage(object):
 	_SWS=_LWS
 	_COMMA=_SWS+","+_SWS
 	_HCOLON="["+_SP+"|"+_HTAB+"]*:"+_SWS
-	_token="["+rg(_alphanum)+"|\!|%|\*|_|\+|`|'|~]+"
-	_header_name="(?P<header-name>"+_token+")"
-	_header_value="(?P<header-value>"+_TEXT_UTF8char+"|"+_UTF8_CONT+"|"+_LWS+")*"
+	_token="["+rg(_alphanum)+"|\-|\.|\!|%|\*|_|\+|`|'|~]+"
+	_header_name="(?P<header_name>"+_token+")"
+	_header_value="(?P<header_value>"+_TEXT_UTF8char+"|"+_UTF8_CONT+"|"+_LWS+")*"
 	#This actually does not exist in the BNF, problem however is that in section 7.3 header is defined and it could contain multiple values - in the BNF extension-header
 	#which is here called _header is defined to containing just value (so just one of them)
-	_header_values="(?P<header-values>"+_header_value+"(?:"+_COMMA+_header_value+")*)"
+	_header_values="(?P<header_values>"+_header_value+"(?:"+_COMMA+_header_value+")*)"
 	#_header=_header_name+_HCOLON+_header_value
 	#This is extension-header in the BNF - used here as generic for all headers -> there is a difference, as I use header_values (multiple) instead of header_value (one as by the BNF)
 	#This is due to there are headers containing multiple values (as Contact for exapmle)
-	_header=_header_name+"(?P<headervalue-seperator>"+_HCOLON+")"+_header_values
+	_header=_header_name+"(?P<headervalue_seperator>"+_HCOLON+")"+_header_values
 	_requestline="^[\w,-,\.,!,%,\*,_,\+,\',~]+ \S* SIP/\d+\.\d+"
 	_statusline="SIP/\d+\.\d+ \d{3} .*"
 	_lineseperator="\r\n"
 
 	def __init__(self,message):
 		self.message=message
-		self.structure=None
+		self.messagestruct=None
 	
 	#Actual a short cut - we are not parsing line by line, but just seperating the lines
 	def get_lines(self,message=None,lineseperator=None):
 		if not message:
 			message=self.message
 		if not lineseperator:
-			lineseperator=_lineseperator
+			lineseperator=self._lineseperator
+		d.debug("Splitted messag into lines")
 		return(message.split(lineseperator))
 	
 	##This should maybe get to a own class at some point -> makes it possible to implement multiple methods -> such as getheader or getvalue
@@ -68,32 +69,42 @@ class sipmessage(object):
 	#headervalue-seperator -> everything in between headername and values -> needed for re-assembling the header - will be None in case of header could not be parsed
 	def get_headers(self,message=None,lineseperator=None):
 		#Regular expressions to be checked as "headers" - this could not be easily extended, as further down you would need to adjust what to write to single fields of the result
-		tocheck=dict({"header":_header,"statusline":_statusline,"requestline":_requestline})
+		tocheck=dict({"header":self._header,"statusline":self._statusline,"requestline":self._requestline})
 		if not message:
 			message=self.message
-		if lineseperator==self.lineseperator:
-			lineseperator=_lineseperator
+		if not lineseperator:
+			lineseperator=self._lineseperator
 		result=list()
-		for line in get_lines(message,lineseperator):
+		d.debug("Getting headers")
+		for line in self.get_lines(message,lineseperator):
+			d.debug("Processing line of message (line-by-line): " + line)
 			#Check if it is a header, statusline or requestline
-			for rexname,regularex in tocheck:
+			run=1
+			for rexname,regularex in tocheck.items():
 				try:
+					d.debug("Checking line against "+rexname+" defined as: "+regularex)
 					rmatch=regex.match(regularex,line)
 					headerandvaluematch=rmatch.capturesdict()
 					#This will just run if there was no exception -> meaning that the result was not None and therefore something matched
 					#If the regular-expression to check was not a header, set headername to the name of the regular expression and header-value to its value
-					if rexname== "statusline":
+					if rexname== "statusline" or rexname=="requestline":
 						headerandvalue=dict({"header-name":rexname,"header-values":rmatch[0],"headervalue-seperator":None})
+					if rexname== "header":
+						headerandvalue=dict({"header-name":headerandvaluematch["header_name"],"header-values":headerandvaluematch["header_values"],"headervalue-seperator":headerandvaluematch["headervalue_seperator"]})
+					d.debug("Check sucessfull, type is: " + rexname)
 					break
 				except AttributeError:
 					#If not alle regularexpressions have been checked continue 
 					#In case everything has been checked there is no result -> set the header to None and values to the complete string -> we could reassemble the message doing this, even if it is inavalid
 					if run == len(tocheck):
 						headerandvalue=dict({"header-name":None,"header-values":line,"headervalue-seperator":None})
+						d.debug("Check failed, no more regular expressions to check. Save it as unknown header (None)")
 					else:
-						continue
-					
-		result.append(dict({"name":headerandvalue["header-name"],"values":headerandvalue["header-values"],"headervalue-seperator":headerandvalue["headerandvalue-seperator"]}))
+						d.debug("Check failed, checking next regular expression")
+				run+=1
+
+			#Actually no idea why this is here - actually headerandvalue would contain already the the single dictionaries -> why to create one more?
+			result.append(dict({"name":headerandvalue["header-name"],"values":headerandvalue["header-values"],"headervalue-seperator":headerandvalue["headervalue-seperator"]}))
 		return result	
 	
 	#Returning a structure representing the structure of the message as far as it could de-assembled
@@ -114,28 +125,31 @@ class sipmessage(object):
 		#The first part is a total chaos
 		#This is done as we need first of all the complete header -> for the first element we will write
 		#The get_headers function will later on do the same again, but its not avoidable
-		for headernumber,header in enumerate(get_lines(message)):
+		for headernumber,header in enumerate(self.get_lines(message)):
 #			structure.append({"type":"header","value":header,"follower":None,"seperator":"\r\n"}	
 #			headersplitresult=get_headers(line)[0]	
 #			headervalues=list([dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}
 #			headername=list([dict({"type":"header-name","value":headersplitresult[headervalue-seperator]+headersplitresult[values],"follower":None,"seperator":headersplitresult["headervalue-seperator"]})])
 #			structure[headernumber].update({"follower":headername})
 			headerparts=list()
-			headersplitresult=get_headers(line)[0]	
+			headersplitresult=self.get_headers(header)[0]	
 			headerparts.append(dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}))
-			headerparts.append=(dict({"type":"header-name","value":headersplitresult["name"],"follower":None,"seperator":headersplitresult["headervalue-seperator"]}))
+			headerparts.append(dict({"type":"header-name","value":headersplitresult["name"],"follower":None,"seperator":headersplitresult["headervalue-seperator"]}))
 			#seperator=\r\n is a hack -> actually the BNF needs to be changed
 			#This needs to be done manually, also in the future - it is a exception, as the type is named by part of the element value -> header by the headername, instead of
 			#by its BNF element name - needed for headers as else we could not address the concrete header 
-			structure.append({"type":headersplitresult["name"],"value":header,"follower":headerparts,"seperator":"\r\n"})	
+			structure.append(dict({"type":headersplitresult["name"],"value":header,"follower":headerparts,"seperator":"\r\n"}))	
+			d.debug("Created structure from " + str(message) + " looks like this: " + str(structure))
 		return structure
 
 	#Builds the message from the struct of the message - using the top level values + there seperators
 	def _buildmessage(self,struckt):
-		message=str
+		message=str()
 		for header in struckt:	
+			d.debug("Building message, adding header: " + str(header["value"]))
 			message+=header["value"]
 			if header["seperator"]:
+				d.debug("Building message, adding seperator : " + str(header["value"]))
 				message+=header["seperator"]
 		return (message)
 			
@@ -146,21 +160,22 @@ class sipmessage(object):
 	#replacement -> by what it should be replaced, put None if it should be deleted
 	#xte -> means if there are possible multiple occurences of "part" the how manity of them should be replaced - optional it could be 0 -> meaning all of them
 	#justvalue -> makes mostly just sense with headers, it will not replace the "part" defined, but just its value
-	def replace(part,replacement,xte=1,justvalue=False,message=None):
+	def replace(self,part,replacement,xte=1,justvalue=False,message=None):
 		if not message:
-			message=self.message()
+			message=self.message
 		
 		partlist=part.split(".")	
 		if not self.messagestruct:
-			self.messagestruct=getpartstructure(message)
+			self.messagestruct=self.getpartstructure(message)
 		messagestruct=copy.deepcopy(self.messagestruct)
 		#Not used, since not applicable - working with the real struct (real in the sense of real for the function - it is a copy of the one used in the class)
 		workingmstruct=copy.deepcopy(messagestruct)
-		selector=list([typ,seperator,value])
+		selector=list(["typ","seperator","value"])
 		counterxte=0
 		changecounter=0
 		partlistindex=0
-		visitedlevel=structure[0]
+		#visitedlevel=messagestruct[0]
+		visitedlevel=list([messagestruct])
 		visitedelement=list()
 
 		#### Code handling xte=0 needs to be removed -> the functionality needs to be build outside this block-this block allows just one element at a time to be modified
@@ -171,6 +186,7 @@ class sipmessage(object):
 				break
 			#Looking for element which has not cheched as state in the last level
 			for element in visitedlevel[len(visitedlevel)-1]:
+				d.debug("Using element: " + str(element) + "on level number " + str(len(visitedlevel)-1) + "which looks like this: " + str(visitedlevel[len(visitedlevel)-1])) 
 				try:
 					elementchecked=element["checked"]
 				except KeyError:
@@ -276,12 +292,12 @@ class sipmessage(object):
 	#It expects a list with dictionary in it -  which has at least element, replacement and otpional attributnumber in it 
 	#Optional a message to parse could be hand over -> but note, that the message of the object will become the message provided here - if no message, it is the message given
 	#to the object at initalization time
-	def replace_multiple(replacementlist,message=None):
+	def replace_multiple(self,replacementlist,message=None):
 		if not message:
-			message=self.message()	
-
+			message=self.message	
+		
 		for replacementdict in replacementlist:
-			if replacementdict[attributnumber]:
+			if replacementdict["attributnumber"]:
 				newmessage=self.replace(replacementdict["element"],replacementdict["replacement"],replacementdict["attributnumber"])
 			else:
 				newmessage=self.replace(replacementdict["element"],replacementdict["replacement"])
