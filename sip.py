@@ -66,7 +66,8 @@ class sipmessage(object):
 	#Every dict contains 2 fields (it is preferred to use the field names to get the data, so that it could be extended later without breaking the code)
 	#name -> headername, it could be statusline if it is the statusline or requestline if it is the requestline, it could be None if the stuff in there could not be parsed, in this case value contains the complete line
 	#values -> the values as one string, the value might be None if there was no value
-	#headervalue-seperator -> everything in between headername and values -> needed for re-assembling the header - will be None in case of header could not be parsed
+	#headervalue-seperator -> everything in between headername and values -> needed for re-assembling the header - will be "" in case of header could not be parsed
+	#it won't be None, as that would require extra steps in every routine to check that - while if "" it will add simply nothing
 	def get_headers(self,message=None,lineseperator=None):
 		#Regular expressions to be checked as "headers" - this could not be easily extended, as further down you would need to adjust what to write to single fields of the result
 		tocheck=dict({"header":self._header,"statusline":self._statusline,"requestline":self._requestline})
@@ -84,7 +85,13 @@ class sipmessage(object):
 				try:
 					d.debug("Checking line against "+rexname+" defined as: "+regularex)
 					rmatch=regex.match(regularex,line)
-					headerandvaluematch=rmatch.capturesdict()
+					#headerandvaluematch=rmatch.capturesdict()
+					headerandvaluematch=dict()
+					#Within the capturedict every match-group is represended by a list of matches for that group - even if there is just one 
+					#removing the list - add one result per capture group
+					for key, value in rmatch.capturesdict().items():
+						headerandvaluematch.update({key:value[0]})
+						
 					#This will just run if there was no exception -> meaning that the result was not None and therefore something matched
 					#If the regular-expression to check was not a header, set headername to the name of the regular expression and header-value to its value
 					if rexname== "statusline" or rexname=="requestline":
@@ -113,7 +120,7 @@ class sipmessage(object):
 	#dicts containing fields
 	#tpye -> type of the part - could be None if the type could not be determined
 	#value -> value of the part 
-	#seperator -> the seperator which seperates this part from the next lower one - could be None if there is no such thing or if there is no next lower part
+	#seperator -> the seperator which seperates this part from the next lower one - could be "" if there was none (don't set it to none, as that will require checks all the time) 
 	#follower -> the next deeper level - could be None if there is none
 	#starts all over in the next deeper level
 	def getpartstructure(self,message=None):
@@ -133,8 +140,8 @@ class sipmessage(object):
 #			structure[headernumber].update({"follower":headername})
 			headerparts=list()
 			headersplitresult=self.get_headers(header)[0]	
-			headerparts.append(dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":None}))
 			headerparts.append(dict({"type":"header-name","value":headersplitresult["name"],"follower":None,"seperator":headersplitresult["headervalue-seperator"]}))
+			headerparts.append(dict({"type":"header-values","value":headersplitresult["values"],"follower":None,"seperator":""}))
 			#seperator=\r\n is a hack -> actually the BNF needs to be changed
 			#This needs to be done manually, also in the future - it is a exception, as the type is named by part of the element value -> header by the headername, instead of
 			#by its BNF element name - needed for headers as else we could not address the concrete header 
@@ -176,6 +183,10 @@ class sipmessage(object):
 		partlistindex=0
 		#visitedlevel=messagestruct[0]
 		visitedlevel=list([messagestruct])
+		###
+		lastvisitedlevel=list([visitedlevel[len(visitedlevel)-1]])
+		print ("messagestruct:",messagestruct)
+		print ("lastvisitedlevel:",lastvisitedlevel)
 		visitedelement=list()
 
 		#### Code handling xte=0 needs to be removed -> the functionality needs to be build outside this block-this block allows just one element at a time to be modified
@@ -185,19 +196,40 @@ class sipmessage(object):
 			if counterxte==xte:
 				break
 			#Looking for element which has not cheched as state in the last level
-			for element in visitedlevel[len(visitedlevel)-1]:
-				d.debug("Using element: " + str(element) + "on level number " + str(len(visitedlevel)-1) + "which looks like this: " + str(visitedlevel[len(visitedlevel)-1])) 
+			###for element in visitedlevel[len(visitedlevel)-1]:
+			###Replaced for loop
+			elementsonlevel=len(visitedlevel[len(visitedlevel)-1])
+			elementcounter=0
+			godeeper=False
+			#Added instead of for 
+			#while elementcounter < elementsonlevel-1:
+			while elementcounter < elementsonlevel:
+				elementcounter+=1
+				print ("elementcounter", elementcounter)
+				print ("elementsonlevel", elementsonlevel)
+				print("Länge von visitedelement", len(visitedlevel[len(visitedlevel)-1]))
+				element=visitedlevel[len(visitedlevel)-1][elementcounter-1]
+			#for element in lastvisitedlevel:
+				d.debug("Using element : " + str(element) + " on level number " + str(len(visitedlevel)-1) + " which looks like this: " + str(lastvisitedlevel[len(lastvisitedlevel)-1])) 
+				d.debug("Comparing1 "+str(element["type"])+" to "+str(partlist[partlistindex]))
 				try:
 					elementchecked=element["checked"]
 				except KeyError:
 					elementchecked=0
+					d.debug("No elementchecked attribute - set it to 0")
 				if not elementchecked:
+					d.debug("Element has not been checked yet… checking")
 					#Check whether the element is of type we are looking for on this level
+					print (element["type"])
+					print (partlist[partlistindex])
+					d.debug("Comparing "+str(element["type"])+" to "+str(partlist[partlistindex]))
 					if element["type"]==partlist[partlistindex]:
+						d.debug("Found matching subelement, " + str(element["type"]) + " matches " + str(partlist[partlistindex]) + " of partlist " + str(partlist))
 						#Check if next part would be just the selector -> in this case we have found a element -> no need to go deeper 
 						if partlist[partlistindex+1] in selector:
 							counterxte+=1
 							element["checked"]=1
+							#d.debug("Found matching subelement, " + str(element["type"]) + " matches " + str(partlist["partlistindex"]) + " of partlist " + str(partlist))
 							#Check whether it is the xte element we where searching for or whether we need to find all element of the type
 							if counterxte==xte or xte==0:
 								#Update the element and within it the field indicated by selector (which is at the end of the partlist) 
@@ -205,6 +237,7 @@ class sipmessage(object):
 								#If replacement is None
 								if not replacement:
 									replacement=""
+									d.debug("Replacement is None, setting replacement string to empty string")
 								element[partlist[partlistindex+1]]=replacement
 								#remove all levels which came after the current one -> they have become invalid, as something has been updated for 
 								#the current one and they do not reflect this change -> but are the building-blocks from which the current one would 
@@ -212,26 +245,37 @@ class sipmessage(object):
 								element["follower"]=None
 								changecounter+=1 
 								#Go through the whole thing end rebuild all values
-								while true:
+								while True:
 									#There is no way to go higher -> so leave
 									if len(visitedlevel) == 1:
 										break
+									#Blanking the value of the element whichs value will be rebuild
+									visitedelement[len(visitedelement)-1]["value"]=""
 									#Running through all the elements of the current level and add there values+seperator to the next higher element
 									#(the last one in visitedelement) - rebuilding its value
-									for element in visitedlevel[len(visitedlevel)-1]:
+									ielementsonlevel=len(visitedlevel[len(visitedlevel)-1])
+									ielementcounter=0
+									while ielementcounter < ielementsonlevel:
+										ielementcounter+=1
+										print ("ielementcounter", ielementcounter)
+										print ("elementsonlevel", ielementsonlevel)
+										element=visitedlevel[len(visitedlevel)-1][ielementcounter-1]
+									###for element in visitedlevel[len(visitedlevel)-1]:
 										try:
 											elementchanged=element["changed"]	
 										except KeyError:
 											elementchanged=0
 										if not elementchanged:
-											visitedelement[len(visitedelement)-1]["value"]+=element["value"]+element["separator"]
+											print ("Assembling: ",str(visitedelement[len(visitedelement)-1]["value"]),str(element["value"]),str(element["seperator"]))
+											visitedelement[len(visitedelement)-1]["value"]+=element["value"]+element["seperator"]
 											element["changed"]=1
 											continue
 										else:
 											continue
 									visitedlevel.pop()
 									visitedelement.pop()
-
+									#Extra step, we need to add the highest level (entry) in visitedlevel to lastvisitedlevel 
+									lastvisitedlevel.append([len(visitedlevel)-1])
 								#If we are looking just for the xte element we have found everything to be fonud -> leave the loop
 								if counterxte==xte:
 									break
@@ -249,12 +293,20 @@ class sipmessage(object):
 							#If yes -> go in partlistindex, level into the next level, add the element to the list of visited elements
 							#repeat the loop -> running throug the level (as visitedlevel is on another now it will check the next level)
 							if element["follower"]:
+								d.debug("Element has a additional level - going deeper")
 								partlistindex+=1
 								visitedelement.append(element)
 								visitedlevel.append(element["follower"])	
-								continue
+								d.debug("Follower is:" + str(element["follower"]))
+								#Extra step, we need to add the highest level (entry) in visitedlevel to lastvisitedlevel 
+								lastvisitedlevel.append([len(visitedlevel)-1])
+								#I think that was a bug
+								#continue
+								godeeper=True
+								break
 							#Element has no next level 
 							else:
+								d.debug("Element has no level - check next element on same level")
 								element["checked"]=1				
 								continue
 					#If element does not mach			
@@ -263,22 +315,28 @@ class sipmessage(object):
 						continue
 
 			#Outside of the inner loop
-			#This is the case if all elements have been checked/there is no element whose checked-indicator is 0 
-			#We need to shift one level up if possible
-			#If we are currently already on the highest level -> we have done everything, there is nothing left to check
-			if len(visitedlevel) == 1:
-				break
-			#If not on the highest level, go one level higher
+			#Check if loop was left because we need to go to a deeper level - if not we need to go up (all elements of level have been checked)
+			if godeeper:
+				godeeper=False
 			else:
-				#Remove last level from levellist
-				visitedlevel.pop()
-				#Set element over which we entered the level to checked and remove it from the list
-				visitedelement[len(visitedelement)-1]["checked"]=1
-				visitedelement.pop()
-				#Reduce partlistindex (index telling what element we are looking for on this level) by 1 -> as we also reduce the level by 1
-				partlistindex-=1
-				continue
-				
+				#This coud be  the case if all elements have been checked/there is no element whose checked-indicator is 0 
+				#We need to shift one level up if possible
+				#If we are currently already on the highest level -> we have done everything, there is nothing left to check
+				if len(visitedlevel) == 1:
+					break
+				#If not on the highest level, go one level higher
+				else:
+					#Remove last level from levellist
+					visitedlevel.pop()
+					#Extra step, we need to add the highest level (entry) in visitedlevel to lastvisitedlevel 
+					lastvisitedlevel.append([len(visitedlevel)-1])
+					#Set element over which we entered the level to checked and remove it from the list
+					visitedelement[len(visitedelement)-1]["checked"]=1
+					visitedelement.pop()
+					#Reduce partlistindex (index telling what element we are looking for on this level) by 1 -> as we also reduce the level by 1
+					partlistindex-=1
+					continue
+					
 		#Rebuilding the message using the struct
 		message=self._buildmessage(messagestruct)
 		self.message=message

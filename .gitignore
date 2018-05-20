@@ -1,3 +1,5 @@
 *.pcap
 *.pcapng
 test.*
+__pycache__
+.*.pyc
