@@ -51,7 +51,20 @@ In the following pip (Python package installer) is being used, please note that 
 
 # Usage
 
-* process.py -f \<File to Parse\>
+* python3 process.py -f \<File to Parse\>
   * This will process the given file and print the output on the command line
 * -o \<File\> will write the output to a file
 * process.py -h will show the help and additional options
+
+
+# sipxml-options
+
+* -o -> Outputpath
+* -x -> Write sippxml; This will write the messages as they are, no replacements, no fields
+* -r  -> Replace element in the SIP messages; Currently just header values and names could be replaced (more coming soon)
+  * Syntax: -r <Headername>.<header-name|header-values>.<value|seperator>
+    * Example: -r Call-ID.header-values.value:[Call-ID] -> This will replace the value of the header Call-ID by [Call-ID]
+    * Exampl: -r From.header-name.value:From1 -> This will replace the value of the name of the header From with the value From1 - in other words the From header name will be From1 afterwards
+  * Headername -> The name of the header to change
+  * header-name or header-value -> What should be manipulated, either the header-name or the values of the header
+  * values or seperator -> Should the actual value be manipulated or the the seperator between the single fields
